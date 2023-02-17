@@ -1,0 +1,31 @@
+{
+  "name": "node-mass-storage",
+  "version": "0.1.0",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc"
+  },
+  "author": "asivery",
+  "license": "GPL-2.0",
+  "dependencies": {
+    "async-mutex": "^0.4.0",
+    "usb": "^2.8.0"
+  },
+  "files": [
+    "./dist"
+  ],
+  "keywords": [
+    "SCSI",
+    "webusb",
+    "mass storage"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/asivery/node-mass-storage.git"
+  },
+  "devDependencies": {
+    "@types/node": "^18.13.0",
+    "typescript": "^4.9.5"
+  },
+  "description": "A library that lets you work with USB mass storage devices connected via WebUSB. PLEASE DO NOT USE THIS UNLESS YOU KNOW WHAT YOU'RE DOING!!!"
+}
