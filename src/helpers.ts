@@ -32,11 +32,13 @@ export function getNthPartitionFromMBR(mbrSector: Uint8Array, n: number){
 }
 
 export function dumpHex(data: Uint8Array){
+    let output = ""
     for(let line = 0; line < data.length / 16; line++){
         const head = (line * 16).toString(16).padStart(8, '0');
         const contentBytes = [...data.subarray(line * 16, line * 16 + 16)];
         const content = contentBytes.map(e => e.toString(16).padStart(2, '0')).join(' ');
-        const footer = contentBytes.map(e => (e >= 0x20 && e <= 0x7F) ? e : '.'.charCodeAt(0)).map(e => String.fromCharCode(e)).join('');
-        console.log(`${head}\t${content}\t${footer}`);
+        const footer = contentBytes.map(e => (e >= 0x20 && e <= 0x7F) ? String.fromCharCode(e) : '.').join('');
+        output += `${head}\t${content}\t${footer}`;
     }
+    return output;
 }
