@@ -196,11 +196,11 @@ export class USBMassStorageDriver{
     }
 
     protected async sendCommandOutGetResult(cdb: Uint8Array, data: Uint8Array, cdbLength?: number){
-        const release = await this.driverMutex.acquire();
         const { expectedTag } = await this.sendMassStorageOutCommand(cdb, data.length, cdbLength);
+        const release = await this.driverMutex.acquire();
         const result = await this.usbDevice.transferOut(this.endpointOut, data);
-        const status = await this._getStatus(expectedTag);
         release();
+        const status = await this._getStatus(expectedTag);
         return { result, status };
     }
 
@@ -252,6 +252,7 @@ export class USBMassStorageDriver{
     }
 
     async getMaxLun(){
+        const release = await this.driverMutex.acquire();
         const result = await this.usbDevice.controlTransferIn({
             requestType: 'class',
             recipient: 'interface',
@@ -259,6 +260,7 @@ export class USBMassStorageDriver{
             value: 0,
             request: 0xFE,
         }, 1);
+        release();
         if(result!.status === "stall"){
             return 0;
         }else if(result!.status !== "ok"){
