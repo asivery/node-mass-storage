@@ -118,6 +118,7 @@ export class USBMassStorageDriver{
         if(cdbLength === 0 || cdbLength > 16){
             throw new MassStorageError(`Unknown / invalid command: ${cdb[0]}`);
         }
+        const release = await this.driverMutex.acquire();
 
         if(this.usbSubclass !== USBMassStorageSubclass.REDUCED_BLOCK_COMMANDS && this.usbSubclass !== USBMassStorageSubclass.TRANSPARENT){
             cdbLength = Math.max(12, cdbLength);
@@ -135,8 +136,9 @@ export class USBMassStorageDriver{
         });
         let retTag = this.tag++;
         let result = await this.usbDevice.transferOut(this.endpointOut, cbw);
+        release();
         if(result.status !== "ok") {
-            throw new MassStorageError("Result.status != 'ok'");
+            throw new MassStorageError(`Result.status != 'ok' (${result.status}) CDB 0x${cdb[0].toString(16)}`);
         }
         return {
             len: result.bytesWritten,
@@ -144,21 +146,27 @@ export class USBMassStorageDriver{
         };
     }
 
-    protected async bulkTrasferIn(length: number, canStall = false){
+    protected async bulkTrasferIn(length: number): Promise<{status: 'ok' | 'stall', data: Uint8Array | null}>{
+        const release = await this.driverMutex.acquire();
         let result: USBInTransferResult;
-        do{
-            result = await this.usbDevice.transferIn(this.endpointIn, length);
-            if(result.status! === "stall" && canStall){
-                await this.usbDevice.clearHalt("in", this.endpointIn);
-            }
-        }while(result.status! === "stall" && canStall);
+        result = await this.usbDevice.transferIn(this.endpointIn, length);
+
         if(!result){
             throw new MassStorageError("Cannot bulk read in");
         }
-        if(result.status !== "ok"){
-            throw new MassStorageError("Bulk read in status != 'ok'");
+
+        if(result.status! === "stall"){
+            await this.usbDevice.clearHalt("in", this.endpointIn);
+            release();
+            return { status: 'stall', data: null };
         }
-        return new Uint8Array(result.data!.buffer);
+        release();
+
+        if(result.status !== "ok"){
+            throw new MassStorageError(`Bulk read in status != 'ok' (${result.status})`);
+        }
+        const data = new Uint8Array(result.data!.buffer);
+        return { status: 'ok', data };
     }
 
     protected async _getStatus(expectedTag: number){
@@ -171,12 +179,20 @@ export class USBMassStorageDriver{
     }
 
     protected async sendCommandInGetResult(cdb: Uint8Array, length: number, canStall = false, cdbLength?: number){
-        const release = await this.driverMutex.acquire();
-        const { expectedTag } = await this.sendMassStorageInCommand(cdb, length, cdbLength);
-        const result = await this.bulkTrasferIn(length, canStall);
-        const status = await this._getStatus(expectedTag);
-        release();
-        return { result, status };
+        let status;
+        let bulkReadResult;
+
+        do{
+            const { expectedTag } = await this.sendMassStorageInCommand(cdb, length, cdbLength);
+            bulkReadResult = await this.bulkTrasferIn(length);
+            status = await this._getStatus(expectedTag);
+        }while(bulkReadResult.status === 'stall' && canStall);
+
+        if(bulkReadResult.status !== 'ok'){
+            throw new MassStorageError(`Command IN fail - status != 'ok' (${bulkReadResult.status})`)
+        }
+
+        return { result: bulkReadResult.data!, status };
     }
 
     protected async sendCommandOutGetResult(cdb: Uint8Array, data: Uint8Array, cdbLength?: number){
@@ -190,7 +206,7 @@ export class USBMassStorageDriver{
 
 
     async getSense(){
-        const result = await this.sendCommandInGetResult(new Uint8Array([0x03, 0x00, 0x00, 0x00, 0x12]), 0x12); 
+        const result = await this.sendCommandInGetResult(new Uint8Array([0x03, 0x00, 0x00, 0x00, 0x12]), 0x12);
         if(result.result[0] !== 0x70 && result.result[0] !== 0x71){
             throw new MassStorageError("No SENSE data!");
         }else{
@@ -200,8 +216,11 @@ export class USBMassStorageDriver{
     }
 
     async getMassStorageStatus(expectedTag: number){
-        const result = await this.bulkTrasferIn(13, true);
-        const csw = deserializeCSW(result);
+        let result;
+        do{
+            result = await this.bulkTrasferIn(13);
+        }while(result.status === 'stall');
+        const csw = deserializeCSW(result.data!);
         // In theory we also should check dCSWDataResidue.  But lots of devices
         // set it wrongly.
         if(csw.dCSWTag !== expectedTag){
@@ -218,6 +237,7 @@ export class USBMassStorageDriver{
 
     async init(){
         let i = 0;
+        await this.usbDevice.reset();
         await this.usbDevice.claimInterface(0);
         for(let endpoint of this.usbDevice.configuration!.interfaces[0].alternate.endpoints){
             if(i > 1) throw new MassStorageError("Cannot guess endpoint ids.");
@@ -226,7 +246,7 @@ export class USBMassStorageDriver{
             }else if(endpoint.direction === 'out'){
                 this.endpointOut = endpoint.endpointNumber;
             }
-            i++
+            i++;
         }
         this.lun = await this.getMaxLun();
     }
