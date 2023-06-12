@@ -237,7 +237,7 @@ export class USBMassStorageDriver{
 
     async init(){
         let i = 0;
-        await this.usbDevice.reset();
+        //await this.usbDevice.reset();
         await this.usbDevice.claimInterface(0);
         for(let endpoint of this.usbDevice.configuration!.interfaces[0].alternate.endpoints){
             if(i > 1) throw new MassStorageError("Cannot guess endpoint ids.");
