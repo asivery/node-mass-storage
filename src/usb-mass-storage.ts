@@ -156,7 +156,9 @@ export class USBMassStorageDriver{
         }
 
         if(result.status! === "stall"){
-            await this.usbDevice.clearHalt("in", this.endpointIn);
+            try{
+                await this.usbDevice.clearHalt("in", this.endpointIn);
+            }catch(ex){}
             release();
             return { status: 'stall', data: null };
         }
@@ -181,10 +183,13 @@ export class USBMassStorageDriver{
     protected async sendCommandInGetResult(cdb: Uint8Array, length: number, canStall = false, cdbLength?: number){
         let status;
         let bulkReadResult;
-
         do{
             const { expectedTag } = await this.sendMassStorageInCommand(cdb, length, cdbLength);
-            bulkReadResult = await this.bulkTrasferIn(length);
+            if(length > 0){
+                bulkReadResult = await this.bulkTrasferIn(length);
+            }else{
+                bulkReadResult = { status: 'ok', data: new Uint8Array() };
+            }
             status = await this._getStatus(expectedTag);
         }while(bulkReadResult.status === 'stall' && canStall);
 
@@ -355,5 +360,15 @@ export class USBMassStorageDriver{
         };
 
         return fatfsDriver;
+    }
+
+    async close(){
+        try{
+            await this.usbDevice.reset();
+        }catch(ex){
+
+        }
+        await this.usbDevice.releaseInterface(0);
+        await this.usbDevice.close();
     }
 }
