@@ -38,7 +38,7 @@ export function dumpHex(data: Uint8Array){
         const contentBytes = [...data.subarray(line * 16, line * 16 + 16)];
         const content = contentBytes.map(e => e.toString(16).padStart(2, '0')).join(' ');
         const footer = contentBytes.map(e => (e >= 0x20 && e <= 0x7F) ? String.fromCharCode(e) : '.').join('');
-        output += `${head}\t${content}\t${footer}`;
+        output += `${head}\t${content}\t${footer}\n`;
     }
     return output;
 }

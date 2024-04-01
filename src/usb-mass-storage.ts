@@ -362,6 +362,27 @@ export class USBMassStorageDriver{
         return fatfsDriver;
     }
 
+    async createArbitraryNUFatFSVolumeDriver(partInfo: { sectorCount: number, firstLBA: number }, blockSize: number, rw = false){
+        const fatfsDriver: {
+            sectorSize: number;
+            numSectors: number;
+            readSectors: (i: number, count: number) => Promise<Uint8Array>,
+            writeSectors: ((i: number, data: Uint8Array) => Promise<void>) | null,
+        } = {
+            sectorSize: blockSize,
+            numSectors: partInfo.sectorCount,
+            readSectors: async (i, count) => {
+                const blocksRead = await this.readBlocks(i + partInfo.firstLBA, count, blockSize);
+                return blocksRead;
+            },
+            writeSectors: !rw ? null : async (i, data) => {
+                await this.writeBlocks(i + partInfo.firstLBA, data, blockSize);
+            },
+        };
+
+        return fatfsDriver;
+    }
+
     async close(){
         try{
             await this.usbDevice.reset();
