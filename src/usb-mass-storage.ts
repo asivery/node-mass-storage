@@ -339,6 +339,15 @@ export class USBMassStorageDriver{
         return this.createArbitraryFatFSVolumeDriver(partInfo, capacity.blockSize, rw);
     }
 
+    async createNUFatFSVolumeDriverFromMBRPart(partition: number, rw = false){
+        const devInfo = await this.inquiry();
+        const capacity = await this.getCapacity();
+        const mbr = await this.readBlocks(0, 1, capacity.blockSize);
+        const partInfo = partition === null ? { sectorCount: capacity.maxLba + 1, firstLBA: 0 } : getNthPartitionFromMBR(mbr, partition);
+
+        return this.createArbitraryNUFatFSVolumeDriver(partInfo, capacity.blockSize, rw);
+    }
+
     async createArbitraryFatFSVolumeDriver(partInfo: { sectorCount: number, firstLBA: number }, blockSize: number, rw = false){
         const fatfsDriver: {
             sectorSize: number;
