@@ -241,18 +241,17 @@ export class USBMassStorageDriver{
     }
 
     async init(){
-        let i = 0;
         //await this.usbDevice.reset();
         await this.usbDevice.claimInterface(0);
         for(let endpoint of this.usbDevice.configuration!.interfaces[0].alternate.endpoints){
-            if(i > 1) throw new MassStorageError("Cannot guess endpoint ids.");
+            if(endpoint.type !== 'bulk') continue;
             if(endpoint.direction === 'in'){
                 this.endpointIn = endpoint.endpointNumber;
             }else if(endpoint.direction === 'out'){
                 this.endpointOut = endpoint.endpointNumber;
             }
-            i++;
         }
+        if(!this.endpointIn || !this.endpointOut) throw new Error("Failed to find bulk I/O endpoints of device");
         this.lun = await this.getMaxLun();
     }
 
