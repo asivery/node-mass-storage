@@ -255,6 +255,19 @@ export class USBMassStorageDriver{
         this.lun = await this.getMaxLun();
     }
 
+    // Bulk-Only Mass Storage Reset
+    async runBOMSR(){
+        const release = await this.driverMutex.acquire();
+        await this.usbDevice.controlTransferIn({
+            requestType: 'class',
+            recipient: 'interface',
+            index: 0,
+            value: 0,
+            request: 0xFF,
+        }, 1);
+        release();
+    }
+
     async getMaxLun(){
         const release = await this.driverMutex.acquire();
         const result = await this.usbDevice.controlTransferIn({
