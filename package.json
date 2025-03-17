@@ -1,6 +1,6 @@
 {
   "name": "node-mass-storage",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc"
