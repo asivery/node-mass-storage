@@ -342,7 +342,7 @@ export class USBMassStorageDriver{
         await this.sendCommandOutGetResult(cdb, data);
     }
 
-    async createFatFSVolumeDriverFromMBRPart(partition: number, rw = false){
+    async createFatFSVolumeDriverFromMBRPart(partition: number | null, rw = false){
         const devInfo = await this.inquiry();
         const capacity = await this.getCapacity();
         const mbr = await this.readBlocks(0, 1, capacity.blockSize);
@@ -351,7 +351,7 @@ export class USBMassStorageDriver{
         return this.createArbitraryFatFSVolumeDriver(partInfo, capacity.blockSize, rw);
     }
 
-    async createNUFatFSVolumeDriverFromMBRPart(partition: number, rw = false){
+    async createNUFatFSVolumeDriverFromMBRPart(partition: number | null, rw = false){
         const devInfo = await this.inquiry();
         const capacity = await this.getCapacity();
         const mbr = await this.readBlocks(0, 1, capacity.blockSize);
